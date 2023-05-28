@@ -7,20 +7,20 @@ namespace range_tools {
 
 namespace internal {
 
-template <typename T>
-using Iterator = std::conditional_t<std::is_const_v<std::remove_reference_t<T>>,
-                                    typename std::decay_t<T>::const_iterator, typename std::decay_t<T>::iterator>;
+template <typename Base>
+using Iterator = std::conditional_t<std::is_const_v<std::remove_reference_t<Base>>,
+                                    typename std::decay_t<Base>::const_iterator, typename std::decay_t<Base>::iterator>;
 
-template <typename T>
-using ReverseIterator = std::conditional_t<std::is_const_v<std::remove_reference_t<T>>,
-                                           typename std::decay_t<T>::const_reverse_iterator,
-                                           typename std::decay_t<T>::reverse_iterator>;
+template <typename Base>
+using ReverseIterator = std::conditional_t<std::is_const_v<std::remove_reference_t<Base>>,
+                                           typename std::decay_t<Base>::const_reverse_iterator,
+                                           typename std::decay_t<Base>::reverse_iterator>;
 
-template <typename T>
-using DereferIterator = decltype(*std::declval<T>());
+template <typename Iter>
+using DereferIterator = typename std::iterator_traits<Iter>::reference;
 
-template <typename T>
-constexpr bool IsConstIterator = std::is_const_v<std::remove_reference_t<DereferIterator<T>>>;
+template <typename Iter>
+constexpr bool IS_CONST_ITERATOR = std::is_const_v<std::remove_reference_t<DereferIterator<Iter>>>;
 
 }  // namespace internal
 
