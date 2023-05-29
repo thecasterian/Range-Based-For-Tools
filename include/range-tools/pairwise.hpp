@@ -9,44 +9,34 @@ namespace range_tools {
 namespace internal {
 
 template <typename Iter>
-class PairwiseIterator {
+class PairwiseIteratorBase {
 public:
-    using value_type = std::tuple<typename std::decay_t<Iter>::reference, typename std::decay_t<Iter>::reference>;
-    using reference = value_type;
+    using iterator_category = typename std::iterator_traits<Iter>::iterator_category;
+    using value_type = std::tuple<std::decay_t<DereferIterator<Iter>>, std::decay_t<DereferIterator<Iter>>>;
+    using difference_type = typename std::iterator_traits<Iter>::difference_type;
+    using pointer = void;
+    using reference = std::tuple<DereferIterator<Iter>, DereferIterator<Iter>>;
 
-    PairwiseIterator(const Iter &iter1, const Iter &iter2) : _iter1(iter1), _iter2(iter2) {}
+    PairwiseIteratorBase(const Iter &iter1, const Iter &iter2) : _iter1(iter1), _iter2(iter2) {}
 
-    PairwiseIterator &operator++() {
+    PairwiseIteratorBase<Iter> &operator++() {
         ++_iter1;
         ++_iter2;
         return *this;
     }
 
-    PairwiseIterator operator++(int) {
+    PairwiseIteratorBase<Iter> operator++(int) {
         auto tmp = *this;
         ++_iter1;
         ++_iter2;
         return tmp;
     }
 
-    PairwiseIterator &operator--() {
-        --_iter1;
-        --_iter2;
-        return *this;
-    }
-
-    PairwiseIterator operator--(int) {
-        auto tmp = *this;
-        --_iter1;
-        --_iter2;
-        return tmp;
-    }
-
-    bool operator==(const PairwiseIterator<Iter> &other) const {
+    bool operator==(const PairwiseIteratorBase<Iter> &other) const {
         return _iter1 == other._iter1 && _iter2 == other._iter2;
     }
 
-    bool operator!=(const PairwiseIterator<Iter> &other) const {
+    bool operator!=(const PairwiseIteratorBase<Iter> &other) const {
         return _iter1 != other._iter1 || _iter2 != other._iter2;
     }
 
@@ -54,61 +44,115 @@ public:
         return reference(*_iter1, *_iter2);
     }
 
-private:
+protected:
     Iter _iter1, _iter2;
 };
 
-template <typename Base>
-class Pairwise {
+template <typename Iter, typename = void>
+class PairwiseIterator : public PairwiseIteratorBase<Iter> {
 public:
-    using iterator = PairwiseIterator<Iterator<Base>>;
-    using const_iterator = PairwiseIterator<Iterator<const Base>>;
-    using reverse_iterator = PairwiseIterator<ReverseIterator<Base>>;
-    using const_reverse_iterator = PairwiseIterator<ReverseIterator<const Base>>;
+    using PairwiseIteratorBase<Iter>::PairwiseIteratorBase;
+};
 
-    Pairwise(Base &&base) : _base(std::forward<Base>(base)) {}
+template <typename Iter>
+class PairwiseIterator<Iter, std::enable_if_t<IS_BIDIR_ITERATOR<Iter>>> : public PairwiseIteratorBase<Iter> {
+public:
+    using PairwiseIteratorBase<Iter>::PairwiseIteratorBase;
+
+    PairwiseIterator<Iter> &operator--() {
+        --_iter1;
+        --_iter2;
+        return *this;
+    }
+
+    PairwiseIterator<Iter> operator--(int) {
+        auto tmp = *this;
+        --_iter1;
+        --_iter2;
+        return tmp;
+    }
+
+private:
+    using PairwiseIteratorBase<Iter>::_iter1;
+    using PairwiseIteratorBase<Iter>::_iter2;
+};
+
+template <typename Cont>
+class PairwiseBase {
+public:
+    using size_type = SizeType<Cont>;
+
+    using iterator = PairwiseIterator<Iterator<Cont>>;
+    using const_iterator = PairwiseIterator<Iterator<const Cont>>;
+
+    PairwiseBase(Cont &&cont) : _cont(std::forward<Cont>(cont)) {}
 
     iterator begin(void) {
-        auto iter1 = _base.begin(), iter2 = _base.begin();
-        if (iter2 != _base.end()) {
+        auto iter1 = _cont.begin(), iter2 = _cont.begin();
+        if (iter2 != _cont.end()) {
             ++iter2;
         }
         return iterator(iter1, iter2);
     }
 
     iterator end(void) {
-        auto iter1 = _base.end(), iter2 = _base.end();
-        if (iter1 != _base.begin()) {
+        auto iter1 = _cont.end(), iter2 = _cont.end();
+        if (iter1 != _cont.begin()) {
+            auto size = internal::size(_cont);
+            iter1 = _cont.begin();
+            std::advance(iter1, size - 1);
+        }
+        return iterator(iter1, iter2);
+    }
+
+protected:
+    Cont _cont;
+};
+
+
+template <typename Cont, typename = void>
+class Pairwise : public PairwiseBase<Cont> {
+public:
+    using PairwiseBase<Cont>::PairwiseBase;
+};
+
+template <typename Cont>
+class Pairwise<Cont, std::enable_if_t<IS_BIDIR_ITERATOR<Iterator<Cont>>>> : public PairwiseBase<Cont> {
+public:
+    using PairwiseBase<Cont>::PairwiseBase;
+    using typename PairwiseBase<Cont>::iterator;
+    using typename PairwiseBase<Cont>::const_iterator;
+
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    using PairwiseBase<Cont>::begin;
+
+    iterator end(void) {
+        auto iter1 = _cont.end(), iter2 = _cont.end();
+        if (iter1 != _cont.begin()) {
             --iter1;
         }
         return iterator(iter1, iter2);
     }
 
     reverse_iterator rbegin(void) {
-        auto iter1 = _base.rbegin(), iter2 = _base.rbegin();
-        if (iter1 != _base.rend()) {
-            ++iter1;
-        }
-        return reverse_iterator(iter1, iter2);
+        return reverse_iterator(end());
     }
 
     reverse_iterator rend(void) {
-        auto iter1 = _base.rend(), iter2 = _base.rend();
-        if (iter2 != _base.rbegin()) {
-            --iter2;
-        }
-        return reverse_iterator(iter1, iter2);
+        return reverse_iterator(begin());
     }
 
 private:
-    Base _base;
+    using PairwiseBase<Cont>::_cont;
 };
 
 }  // namespace internal
 
-template <typename Base>
-auto pairwise(Base &&base) {
-    return internal::Pairwise<Base>(std::forward<Base>(base));
+template <typename Cont>
+auto pairwise(Cont &&cont) {
+    return internal::Pairwise<Cont>(std::forward<Cont>(cont));
 }
 
 }  // namespace range_tools
