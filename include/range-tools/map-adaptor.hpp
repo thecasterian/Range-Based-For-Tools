@@ -13,28 +13,31 @@ namespace internal {
 template <typename MapIter>
 class MapKeysIterator {
 public:
+    using iterator_category = typename std::iterator_traits<MapIter>::iterator_category;
     using value_type = typename std::decay_t<DereferIterator<MapIter>>::first_type;
+    using difference_type = typename std::iterator_traits<MapIter>::difference_type;
+    using pointer = const value_type *;
     using reference = const value_type &;
 
     MapKeysIterator(const MapIter &iter) : _iter(iter) {}
 
-    MapKeysIterator &operator++() {
+    MapKeysIterator<MapIter> &operator++() {
         ++_iter;
         return *this;
     }
 
-    MapKeysIterator operator++(int) {
+    MapKeysIterator<MapIter> operator++(int) {
         auto tmp = *this;
         ++_iter;
         return tmp;
     }
 
-    MapKeysIterator &operator--() {
+    MapKeysIterator<MapIter> &operator--() {
         --_iter;
         return *this;
     }
 
-    MapKeysIterator operator--(int) {
+    MapKeysIterator<MapIter> operator--(int) {
         auto tmp = *this;
         --_iter;
         return tmp;
@@ -52,6 +55,10 @@ public:
         return _iter->first;
     }
 
+    pointer operator->() const {
+        return &_iter->first;
+    }
+
 private:
     MapIter _iter;
 };
@@ -61,8 +68,8 @@ class MapKeys {
 public:
     using iterator = MapKeysIterator<Iterator<Map>>;
     using const_iterator = MapKeysIterator<Iterator<const Map>>;
-    using reverse_iterator = MapKeysIterator<ReverseIterator<Map>>;
-    using const_reverse_iterator = MapKeysIterator<ReverseIterator<const Map>>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     MapKeys(Map &&map) : _map(std::forward<Map>(map)) {}
 
@@ -89,28 +96,31 @@ private:
 template <typename MapIter>
 class MapValuesIterator {
 public:
+    using iterator_category = typename std::iterator_traits<MapIter>::iterator_category;
     using value_type = typename std::decay_t<DereferIterator<MapIter>>::second_type;
+    using difference_type = typename std::iterator_traits<MapIter>::difference_type;
+    using pointer = std::conditional_t<IS_CONST_ITERATOR<MapIter>, const value_type *, value_type *>;
     using reference = std::conditional_t<IS_CONST_ITERATOR<MapIter>, const value_type &, value_type &>;
 
     MapValuesIterator(const MapIter &iter) : _iter(iter) {}
 
-    MapValuesIterator &operator++() {
+    MapValuesIterator<MapIter> &operator++() {
         ++_iter;
         return *this;
     }
 
-    MapValuesIterator operator++(int) {
+    MapValuesIterator<MapIter> operator++(int) {
         auto tmp = *this;
         ++_iter;
         return tmp;
     }
 
-    MapValuesIterator &operator--() {
+    MapValuesIterator<MapIter> &operator--() {
         --_iter;
         return *this;
     }
 
-    MapValuesIterator operator--(int) {
+    MapValuesIterator<MapIter> operator--(int) {
         auto tmp = *this;
         --_iter;
         return tmp;
@@ -128,6 +138,10 @@ public:
         return _iter->second;
     }
 
+    pointer operator->() const {
+        return &_iter->second;
+    }
+
 private:
     MapIter _iter;
 };
@@ -137,8 +151,8 @@ class MapValues {
 public:
     using iterator = MapValuesIterator<Iterator<Map>>;
     using const_iterator = MapValuesIterator<Iterator<const Map>>;
-    using reverse_iterator = MapValuesIterator<ReverseIterator<Map>>;
-    using const_reverse_iterator = MapValuesIterator<ReverseIterator<const Map>>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     MapValues(Map &&map) : _map(std::forward<Map>(map)) {}
 
